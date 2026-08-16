@@ -25,10 +25,17 @@ app.get("/", (req, res) => {
   res.send("Hello Todo API");
 });
 
-// Error handler должен быть последним middleware
+// Handle unknown routes
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found",
+    message: `Cannot ${req.method} ${req.path}`
+  });
+});
+ 
+
 app.use(errorHandler);
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
 });
-

@@ -61,7 +61,14 @@ router.get("/:id", (req, res) => {
 
 // POST /api/todos
 router.post("/", validateTodo, (req, res) => {
-  const { title, description, priority, dueDate } = req.body;
+  const body = req.body || {};
+
+  const {
+    title,
+    description,
+    priority,
+    dueDate,
+  } = body;
 
   const newTodo: Todo = {
     title,
@@ -69,7 +76,10 @@ router.post("/", validateTodo, (req, res) => {
     priority,
     dueDate,
     completed: false,
-    id: Math.max(...todos.map((todo) => todo.id)) + 1,
+    id:
+      todos.length === 0
+        ? 1
+        : Math.max(...todos.map((todo) => todo.id)) + 1,
     createdAt: new Date().toISOString(),
   };
 
@@ -90,13 +100,15 @@ router.put("/:id", validateTodoUpdate, (req, res) => {
     });
   }
 
+  const body = req.body || {};
+
   const {
     title,
     description,
     completed,
     priority,
     dueDate,
-  } = req.body;
+  } = body;
 
   if (title !== undefined) {
     todo.title = title;
@@ -141,4 +153,3 @@ router.delete("/:id", (req, res) => {
 });
 
 export default router;
-
