@@ -1,9 +1,6 @@
 import { Router } from "express";
 import { todos, Todo } from "../data/todos";
-import {
-  validateTodo,
-  validateTodoUpdate,
-} from "../middleware/validation";
+import { validateTodo, validateTodoUpdate } from "../middleware/validation";
 
 const router = Router();
 
@@ -15,25 +12,21 @@ router.get("/", (req, res) => {
   if (req.query.completed !== undefined) {
     const completed = req.query.completed === "true";
 
-    filtered = filtered.filter(
-      (todo) => todo.completed === completed
-    );
+    filtered = filtered.filter((todo) => todo.completed === completed);
   }
 
   // Sort by createdAt or dueDate
   if (req.query.sort === "createdAt") {
     filtered.sort(
       (a, b) =>
-        new Date(a.createdAt).getTime() -
-        new Date(b.createdAt).getTime()
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
   }
 
   if (req.query.sort === "dueDate") {
     filtered.sort(
       (a, b) =>
-        new Date(a.dueDate ?? 0).getTime() -
-        new Date(b.dueDate ?? 0).getTime()
+        new Date(a.dueDate ?? 0).getTime() - new Date(b.dueDate ?? 0).getTime(),
     );
   }
 
@@ -46,9 +39,7 @@ router.get("/", (req, res) => {
 
 // GET /api/todos/:id
 router.get("/:id", (req, res) => {
-  const todo = todos.find(
-    (todo) => todo.id === Number(req.params.id)
-  );
+  const todo = todos.find((todo) => todo.id === Number(req.params.id));
 
   if (!todo) {
     return res.status(404).json({
@@ -63,12 +54,7 @@ router.get("/:id", (req, res) => {
 router.post("/", validateTodo, (req, res) => {
   const body = req.body || {};
 
-  const {
-    title,
-    description,
-    priority,
-    dueDate,
-  } = body;
+  const { title, description, priority, dueDate } = body;
 
   const newTodo: Todo = {
     title,
@@ -76,10 +62,7 @@ router.post("/", validateTodo, (req, res) => {
     priority,
     dueDate,
     completed: false,
-    id:
-      todos.length === 0
-        ? 1
-        : Math.max(...todos.map((todo) => todo.id)) + 1,
+    id: todos.length === 0 ? 1 : Math.max(...todos.map((todo) => todo.id)) + 1,
     createdAt: new Date().toISOString(),
   };
 
@@ -88,11 +71,25 @@ router.post("/", validateTodo, (req, res) => {
   return res.status(201).json(newTodo);
 });
 
+// PATCH /api/todos/:id/toggle
+router.patch("/:id/toggle", (req, res) => {
+  const todo = todos.find((todo) => todo.id === Number(req.params.id));
+
+  if (!todo) {
+    return res.status(404).json({
+      error: "Todo not found",
+    });
+  }
+
+  todo.completed = !todo.completed;
+  todo.updatedAt = new Date().toISOString();
+
+  return res.json(todo);
+});
+
 // PUT /api/todos/:id
 router.put("/:id", validateTodoUpdate, (req, res) => {
-  const todo = todos.find(
-    (todo) => todo.id === Number(req.params.id)
-  );
+  const todo = todos.find((todo) => todo.id === Number(req.params.id));
 
   if (!todo) {
     return res.status(404).json({
@@ -102,13 +99,7 @@ router.put("/:id", validateTodoUpdate, (req, res) => {
 
   const body = req.body || {};
 
-  const {
-    title,
-    description,
-    completed,
-    priority,
-    dueDate,
-  } = body;
+  const { title, description, completed, priority, dueDate } = body;
 
   if (title !== undefined) {
     todo.title = title;
@@ -137,9 +128,7 @@ router.put("/:id", validateTodoUpdate, (req, res) => {
 
 // DELETE /api/todos/:id
 router.delete("/:id", (req, res) => {
-  const index = todos.findIndex(
-    (todo) => todo.id === Number(req.params.id)
-  );
+  const index = todos.findIndex((todo) => todo.id === Number(req.params.id));
 
   if (index === -1) {
     return res.status(404).json({
