@@ -1,144 +1,165 @@
 import { Router } from "express";
-import { todos, Todo } from "../data/todos";
+import mongoose from "mongoose";
+import {
+  getTodos,
+  getTodoById,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+} from "../services/todoService";
 import { validateTodo, validateTodoUpdate } from "../middleware/validation";
 
 const router = Router();
 
 // GET /api/todos
-router.get("/", (req, res) => {
-  let filtered = [...todos];
+router.get("/", async (req, res, next) => {
+  try {
+    const completed =
+      req.query.completed !== undefined
+        ? req.query.completed === "true"
+        : undefined;
 
-  // Filter by completed
-  if (req.query.completed !== undefined) {
-    const completed = req.query.completed === "true";
+    const sort =
+      req.query.sort === "dueDate"
+        ? "dueDate"
+        : "createdAt";
 
-    filtered = filtered.filter((todo) => todo.completed === completed);
-  }
-
-  // Sort by createdAt or dueDate
-  if (req.query.sort === "createdAt") {
-    filtered.sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    const page = Math.max(
+      Number(req.query.page) || 1,
+      1
     );
-  }
 
-  if (req.query.sort === "dueDate") {
-    filtered.sort(
-      (a, b) =>
-        new Date(a.dueDate ?? 0).getTime() - new Date(b.dueDate ?? 0).getTime(),
+    const limit = Math.min(
+      Math.max(Number(req.query.limit) || 10, 1),
+      50
     );
-  }
 
-  res.json({
-    todos: filtered,
-    total: todos.length,
-    filtered: filtered.length,
-  });
+    const result = await getTodos({
+      completed,
+      sort,
+      page,
+      limit,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /api/todos/:id
-router.get("/:id", (req, res) => {
-  const todo = todos.find((todo) => todo.id === Number(req.params.id));
+router.get("/:id", async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
 
-  if (!todo) {
-    return res.status(404).json({
-      error: "Todo not found",
-    });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    const todo = await getTodoById(id);
+
+    if (!todo) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    return res.json(todo);
+  } catch (error) {
+    next(error);
   }
-
-  return res.json(todo);
 });
 
 // POST /api/todos
-router.post("/", validateTodo, (req, res) => {
-  const body = req.body || {};
+router.post("/", validateTodo, async (req, res, next) => {
+  try {
+    const todo = await createTodo(req.body);
 
-  const { title, description, priority, dueDate } = body;
-
-  const newTodo: Todo = {
-    title,
-    description,
-    priority,
-    dueDate,
-    completed: false,
-    id: todos.length === 0 ? 1 : Math.max(...todos.map((todo) => todo.id)) + 1,
-    createdAt: new Date().toISOString(),
-  };
-
-  todos.push(newTodo);
-
-  return res.status(201).json(newTodo);
-});
-
-// PATCH /api/todos/:id/toggle
-router.patch("/:id/toggle", (req, res) => {
-  const todo = todos.find((todo) => todo.id === Number(req.params.id));
-
-  if (!todo) {
-    return res.status(404).json({
-      error: "Todo not found",
-    });
+    return res.status(201).json(todo);
+  } catch (error) {
+    next(error);
   }
-
-  todo.completed = !todo.completed;
-  todo.updatedAt = new Date().toISOString();
-
-  return res.json(todo);
 });
 
 // PUT /api/todos/:id
-router.put("/:id", validateTodoUpdate, (req, res) => {
-  const todo = todos.find((todo) => todo.id === Number(req.params.id));
+router.put("/:id", validateTodoUpdate, async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
 
-  if (!todo) {
-    return res.status(404).json({
-      error: "Todo not found",
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    const todo = await updateTodo(id, req.body);
+
+    if (!todo) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    return res.json(todo);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/todos/:id/toggle
+router.patch("/:id/toggle", async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    const currentTodo = await getTodoById(id);
+
+    if (!currentTodo) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    const todo = await updateTodo(id, {
+      completed: !currentTodo.completed,
     });
+
+    return res.json(todo);
+  } catch (error) {
+    next(error);
   }
-
-  const body = req.body || {};
-
-  const { title, description, completed, priority, dueDate } = body;
-
-  if (title !== undefined) {
-    todo.title = title;
-  }
-
-  if (description !== undefined) {
-    todo.description = description;
-  }
-
-  if (completed !== undefined) {
-    todo.completed = completed;
-  }
-
-  if (priority !== undefined) {
-    todo.priority = priority;
-  }
-
-  if (dueDate !== undefined) {
-    todo.dueDate = dueDate;
-  }
-
-  todo.updatedAt = new Date().toISOString();
-
-  return res.json(todo);
 });
 
 // DELETE /api/todos/:id
-router.delete("/:id", (req, res) => {
-  const index = todos.findIndex((todo) => todo.id === Number(req.params.id));
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
 
-  if (index === -1) {
-    return res.status(404).json({
-      error: "Todo not found",
-    });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    const todo = await deleteTodo(id);
+
+    if (!todo) {
+      return res.status(404).json({
+        error: "Todo not found",
+      });
+    }
+
+    return res.status(204).send();
+  } catch (error) {
+    next(error);
   }
-
-  todos.splice(index, 1);
-
-  return res.status(204).send();
 });
 
 export default router;

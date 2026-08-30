@@ -3,11 +3,13 @@ import dotenv from "dotenv";
 import todoRouter from "./routes/todos";
 import { errorHandler } from "./middleware/errorHandler";
 import { connectDB } from "./config/database";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 
